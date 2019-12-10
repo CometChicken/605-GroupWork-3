@@ -4,6 +4,9 @@ This repo contains our STAT 605 group work - Analysis of Climate Change instruct
 
 The main focus of this analysis is to study how temperature has changed over the years. The source of the dataset is NOAA which can be assessed at https://www.kaggle.com/noaa/noaa-global-historical-climatology-network-daily.
 
+You can clone this github repo by **git clone https://https://github.com/CometChicken/605-GroupWork-3.git**
+
+
 
 ## Authors
 
