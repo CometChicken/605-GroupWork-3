@@ -1,0 +1,8 @@
+# Before running this with "condor_submit_dag group3.dag", the
+# directories log, error, output and data must exist.
+# Also you should download the data before running all jobs. You can check how to download by README.
+
+
+job 1 group3.sub
+
+script post 1 merge.sh
