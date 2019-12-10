@@ -7,4 +7,5 @@ Before running "group3.dag" with "condor_submit_dag group3.dag", the directories
 And using the code below to download and unzip the data files before running all jobs.
 
 *wget -O ./data/ghcnd_all_years.zip  https://uwmadison.box.com/shared/static/gm2r0no1fo75hk7xo1wzer0nx82libi8.zip*
+
 *unzip ./data/ghcnd_all_years.zip -d ./data/*
