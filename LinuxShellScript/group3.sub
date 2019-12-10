@@ -1,0 +1,23 @@
+# Before running this with "condor_submit group3.sub", the
+# directories log, error, output and data must exist.
+
+universe = vanilla
+Values=$(Process)+1763
+proc=$INT(Values)
+log = log/group3-chtc_$(Cluster).log
+error = error/group3-chtc_$(Cluster)_$(Process).err
+
+executable = ./group3.sh
+
+arguments = $(proc)
+output = output/group3-chtc_$(Cluster)_$(Process).out
+
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+transfer_input_files = http://proxy.chtc.wisc.edu/SQUID/chtc/R361.tar.gz, packages.tar.gz, data/$(proc).csv.gz, group3.R
+
+request_cpus = 4
+request_memory = 10GB
+request_disk = 5GB
+
+queue 238
