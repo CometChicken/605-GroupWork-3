@@ -1,0 +1,126 @@
+---
+title: "STAT 605 Report"
+author: "Xinkai Chen, Jiawei Wu, Siqi Shen, Bi Qing Teng"
+date: "12/7/2019"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+Climate change is one of the biggest challenges human beings are facing, since it will increase the global temperature, change precipitation, increase the sea level, engulf coastline, and thus threaten our daily life. Recently, some countries has withdrawn from Paris Agreement and claimed that climate change doesn't exist. We want to verify these changes. 
+
+NOAA Global Historical Climatology Network Daily dataset is an integrated database of daily climate summaries from land surface stations across the globe. In this dataset, we have daily data from over 100,000 stations in 180 countries and territories. It provides us several daily variables including maximum, minimum temperature, total daily precipitation, snowfall and snow depth. 
+
+For computation, we will run regression between daily maximum temperature with time for each year each station. We will get intercepts and we take the average of them for each year. Finally, we can plot them with time to see the trend.
+
+To summarize our project, the conclusion is that the climate is still changing, and the Industrial Revolutions might be one of the reason to it.
+
+## Data Preprocessing and Computation
+
+The source of the dataset is https://www.kaggle.com/noaa/noaa-global-historical-climatology-network-daily. The size of dataset is quite large. For each year from 1763 to 2000, there is a csv file, which contains temperature and precipitation data for all stations and days.
+
+#### Clean
+
+```{r}
+library(knitr, quietly = TRUE)
+dat<-read.csv("./1763.csv",header=F)
+colnames(dat) = c("station", "date", "max/min_temperature", "temperature", "mflag", "qflag", "sflag", "time")
+kable(head(dat))
+```
+
+As we go through the dataset of only one year, we can find only the first four columns are necessary for our project, since the last four columns involve snowing or the specific time in a day, etc. They are either too detailed for our research, or too irrelevant. The first one is the station ID, the second one is the date of measurement, the third column contains multiple types of variables and the fourth one contains their type. And notice that the third column variables are all tenths of the original value. For example, if it shows 82, it means 8.2 $^\circ C$.
+
+Firstly, we need to transfer the date variable into the day of year. The R package "lubridate" can handle this easily.
+
+```{r}
+suppressMessages(suppressWarnings(require(lubridate)))
+date1<-as.Date(as.character(dat[,2]),"%Y%m%d")
+day1<-yday(date1)
+```
+
+Since we only concern about the daily maximum temperature of each station, we filter the data and find the temperature data that one station corresponds to, for example, the data of the first station.
+
+```{r}
+site<-levels(dat[,1])
+y1<-dat[which(dat[,1]==site[1] & dat[,3]=="TMAX"),4]/10
+x1<-day1[which(dat[,1]==site[1] & dat[,3]=="TMAX")]
+```
+
+#### Computation
+
+Now we need to do linear regression between the daily temperature and the day of a year for each station. Since there are multiple stations in each year's dataset, we write a loop to realize it.
+
+We find that the size of the data file increases greatly with the year, for example, 1763.csv has only 24 kilobyte while 2018.csv has over 1 gigabyte. Therefore, the request of the memory size for reading each csv file will become greater and greater. We give 147 jobs of 1763-1909.csv 2 GB memory which run 80 minutes in total. Then we give 1910.csv-1937.csv 28 files 5GB memory, and they run 2 hours. Finally, for the rest 64 files, we give them 10 GB memory and they run 2.3 hours.
+
+```{r}
+temp.intercept<-vector()
+temp.slope<-vector()
+j=1
+for(i in 1:length(site)){
+  y1<-dat[which(dat[,1]==site[i] & dat[,3]=="TMAX"),4]/10
+  x1<-day1[which(dat[,1]==site[i] & dat[,3]=="TMAX")]
+  if(all(is.na(y1))==0 & all(is.na(x1))==0){
+    lm1<-lm(y1~x1)
+    temp.intercept[j]<-lm1$coefficients[1]
+    temp.slope[j]<-lm1$coefficients[2]
+    j=j+1
+  }
+}
+```
+
+Now we can get the average of all regression intercepts and slopes for each station.
+
+```{r}
+df.temp<-cbind(mean(temp.intercept,na.rm=T),mean(temp.slope,na.rm=T))
+colnames(df.temp) = c("Intercept", "Slope")
+kable(df.temp)
+```
+
+#### Parallel Computation
+
+The computation in the previous part is only designed for one single year, but we have 238 years in total. Therefore we design a parallel computation which can run on the CHTC. The parallel process will fit the same computation for each year's dataset and output the "df.temp" dataframe of each year as a csv file. Finally, we merge all 238 csv files and get the final result.
+
+#### Results
+
+After submitting the 238 jobs and running them on the CHTC, we can get the result for each year, which is showing below.
+
+```{r}
+dat2<-read.csv("allyearstemp.csv",header=T)
+kable(head(dat2))
+```
+
+We first fit a regression line on Intercept and Year to see if Year variable is significant, and using the table below, we can see that the model is $Intercept = -32.92 + 0.03\ Year$, and Year is statistically significant.
+
+```{r}
+tab = summary(lm(Intercept ~ Year, dat2))$coefficients[, c(1, 4)]
+tab = round(tab, digits = 2)
+colnames(tab) = c("Estimate", "p-value")
+kable(tab)
+```
+
+#### Plot
+
+```{r}
+library(ggplot2, quietly = TRUE)
+ggplot(dat2, aes(x = Year, y = Intercept)) + geom_point()
+```
+
+#### Weakness
+
+The weakness of our analysis is that the real climate change is a complex process, so there might be a lot of confounding factors that we neglect. Even if this is only connected to years, the relationship between them is definitely not a straight line. Since we are not trying to predict the future temperature, the result is already satisfying.
+
+Also, we didn't take into consideration the climate change by countries with the limit of time. Using the analysis we have now, we can still see the overall change, but changes in detail are more important. This part can be added in the future.
+
+## Conclusion
+
+In this project, we want to verify the existence of climate change based on the NOAA dataset. After the data analysis procedure, we found that there is an increasing trend of the climate, and during 1870s, there is a peak. In detail, there is a gap of climates between years before the 1870s, and years after the 1900s, and there is a peak during the 1870s, and the reason for this might be the beginning of the First and Second Industrial Revolution.
+
+From the analysis, we can conclude that the Industrial Revolutions have a harmful effect on our environment. Some scholars believe that we are now experiencing the Third Industrial Revolution. It is a relief to see that scientists are focusing more on clean energy, but we still need to be cautious. If we continue neglecting the fact of global climate change, with the rapid increase of global population, especially in developing countries, the overall consumption of "dirty" energy may still rise, causing the temperature to increase again, and thus destroy most port cities. 
+
+In the future, we can split the stations by different area or countries. And then run the above analysis, which may give more reasonable results. Also, we can do the same computation for the precipitation.
